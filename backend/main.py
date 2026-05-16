@@ -3,12 +3,15 @@ import httpx
 import json
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from google.genai import types as genai_types
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Support both GEMINI_API_KEY and GOOGLE_API_KEY
+if not os.getenv("GOOGLE_API_KEY") and os.getenv("GEMINI_API_KEY"):
+    os.environ["GOOGLE_API_KEY"] = os.getenv("GEMINI_API_KEY")
 
 # Lazy imports for ADK
 Runner = None
@@ -68,9 +71,6 @@ def _event_text(event):
     return " ".join(texts).strip()
 
 async def get_github_data_fallback(username: str):
-    """
-    Directly fetches GitHub data as a fallback if Gemini quota is exceeded.
-    """
     headers = {}
     token = os.getenv("GITHUB_TOKEN")
     if token:
@@ -113,7 +113,6 @@ async def generate_card(request: GenerateRequest):
     if not username:
         raise HTTPException(status_code=400, detail="Username is required")
 
-    # Try ADK Agent first
     try:
         _runner = init_runner()
         if _runner:
@@ -139,8 +138,6 @@ async def generate_card(request: GenerateRequest):
     except Exception as e:
         print(f"Agent Execution Error: {e}")
 
-    # Fallback to direct GitHub API if Agent fails or Quota exceeded
-    print(f"Using fallback for {username}")
     fallback_data = await get_github_data_fallback(username)
     if fallback_data:
         return {
@@ -152,18 +149,11 @@ async def generate_card(request: GenerateRequest):
     
     raise HTTPException(status_code=404, detail="User not found or APIs unavailable.")
 
-@app.get("/", response_class=HTMLResponse)
-async def serve_index():
-    file_path = "static/index.html"
-    if os.path.exists(file_path):
-        with open(file_path, "r", encoding="utf-8") as f:
-            return f.read()
-    return "Frontend not found. Build the frontend or check static/ folder."
-
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8083)
+    # User requested port 8080 for backend
+    uvicorn.run(app, host="0.0.0.0", port=8080)
