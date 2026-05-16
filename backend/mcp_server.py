@@ -10,7 +10,7 @@ load_dotenv()
 
 # Configure Gemini
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-model = genai.GenerativeModel("gemini-2.5-flash")
+model = genai.GenerativeModel("gemini-1.5-flash")
 
 # Initialize FastMCP server
 mcp = FastMCP("GitHub Dev Card Generator")
@@ -20,7 +20,12 @@ async def scrape_github(username: str) -> dict:
     """
     Calls the GitHub REST API to fetch user profile and repository data.
     """
-    async with httpx.AsyncClient() as client:
+    headers = {}
+    token = os.getenv("GITHUB_TOKEN")
+    if token:
+        headers["Authorization"] = f"token {token}"
+    
+    async with httpx.AsyncClient(headers=headers) as client:
         # Fetch User Profile
         user_res = await client.get(f"https://api.github.com/users/{username}")
         if user_res.status_code != 200:

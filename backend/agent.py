@@ -2,7 +2,7 @@ import os
 import sys
 from dotenv import load_dotenv
 from google.adk import Agent
-from google.adk.tools.mcp_tool import McpToolset, StdioConnectionParams
+from google.adk.tools.mcp_tool.mcp_toolset import McpToolset, StdioConnectionParams
 from mcp.client.stdio import StdioServerParameters
 
 # Load environment variables
@@ -27,7 +27,7 @@ mcp_tools = McpToolset(
 # Define the GitHub Card Agent
 github_card_agent = Agent(
     name="github_card_agent",
-    model="gemini-2.5-flash",
+    model="gemini-1.5-flash",
     instruction=(
         "You are a GitHub profile analyst and dev card generator. "
         "When a user gives you a GitHub username, you ALWAYS follow this exact sequence: "
