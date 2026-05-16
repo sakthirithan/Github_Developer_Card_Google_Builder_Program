@@ -100,26 +100,38 @@ async def generate_card(request: GenerateRequest):
 
         new_message = genai_types.UserContent(parts=[genai_types.Part(text=message)])
         events = list(_runner.run(user_id=username, session_id=session_id, new_message=new_message))
+        
+        # Log events for debugging
+        # (Removed print that crashes on Windows with emojis)
+            
         agent_response = "\n".join([_event_text(event) for event in events if _event_text(event)])
+        if not agent_response:
+             agent_response = "Agent performed actions but gave no text response."
 
-        # Since our agent saves the card, we'll check the filesystem for the result
-        card_path = f"static/cards/{username}.html"
-        if os.path.exists(card_path):
-            with open(card_path, "r", encoding="utf-8") as f:
-                html_content = f.read()
+        # Parse the agent's response as JSON
+        try:
+            print(f"DEBUG: Agent Response: '{agent_response}'")
+            # Clean up potential markdown wrapper
+            clean_json = agent_response.strip()
+            if clean_json.startswith("```json"):
+                clean_json = clean_json[7:-3].strip()
+            elif clean_json.startswith("```"):
+                clean_json = clean_json[3:-3].strip()
+            
+            import json
+            profile_data = json.loads(clean_json)
+            
             return {
                 "status": "success",
                 "username": username,
-                "card_url": f"/card/{username}",
-                "html": html_content,
-                "agent_response": agent_response
+                "data": profile_data
             }
-        else:
+        except Exception as e:
             return {
                 "status": "partial_success",
                 "username": username,
                 "agent_response": agent_response,
-                "detail": "Agent finished but card file was not found."
+                "detail": f"Failed to parse agent response as JSON: {e}"
             }
 
     except Exception as e:
@@ -158,4 +170,4 @@ async def health():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    uvicorn.run(app, host="0.0.0.0", port=8083)

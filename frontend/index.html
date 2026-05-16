@@ -70,10 +70,8 @@
 
     <script type="text/babel">
       const { useState } = React;
+
       // Determine backend base URL:
-      // 1) If ?apiBase= is provided in the URL, use it (useful for testing).
-      // 2) If the page is served from the run.app domain (production), use same-origin.
-      // 3) Otherwise default to local backend for development.
       (function () {
         const params = new URLSearchParams(window.location.search);
         const apiBaseParam = params.get("apiBase");
@@ -83,7 +81,6 @@
           detected = apiBaseParam.replace(/\/+$/, "");
         } else {
           const origin = window.location.origin || window.location.href;
-          // Treat the run.app deployed site as same-origin backend
           if (
             origin.includes("run.app") ||
             origin.includes("github-dev-card-174651075649")
@@ -94,7 +91,82 @@
         window.BACKEND_URL = detected;
       })();
 
-      const BACKEND_URL = window.BACKEND_URL || "http://127.0.0.1:8083";
+      const BACKEND_URL = window.BACKEND_URL;
+
+      function DevCard({ data }) {
+        if (!data || !data.github_data) return null;
+        const { github_data, analysis } = data;
+        const theme = (analysis.card_theme || "hacker").toLowerCase();
+
+        const themes = {
+          hacker: "bg-[#0d1117] text-[#39d353] border-[#39d353]",
+          builder: "bg-[#0d1117] text-[#58a6ff] border-[#58a6ff]",
+          researcher: "bg-[#0d1117] text-[#bc8cff] border-[#bc8cff]",
+          designer: "bg-[#0d1117] text-[#ff7b72] border-[#ff7b72]",
+          "open-source-hero": "bg-[#0d1117] text-[#f0883e] border-[#f0883e]",
+        };
+
+        const themeClass = themes[theme] || themes.hacker;
+
+        return (
+          <div className={`max-w-md mx-auto rounded-2xl shadow-2xl border-2 p-8 ${themeClass} font-mono transform hover:scale-[1.02] transition-all duration-300`}>
+            <div className="flex items-center space-x-6 mb-6">
+              <img
+                src={github_data.avatar_url}
+                className="w-24 h-24 rounded-full border-4 border-current shadow-lg"
+                alt={github_data.name}
+              />
+              <div className="overflow-hidden">
+                <h2 className="text-3xl font-black tracking-tighter uppercase truncate">{github_data.name}</h2>
+                <p className="text-lg opacity-80">@{github_data.name.toLowerCase().replace(/\s+/g, '')}</p>
+              </div>
+            </div>
+
+            <div className="mb-6 min-h-[3rem]">
+              <p className="text-lg italic leading-tight">"{analysis.developer_vibe}"</p>
+            </div>
+
+            <div className="flex flex-wrap gap-2 mb-8">
+              {analysis.top_skills.map((skill, i) => (
+                <span key={i} className="px-3 py-1 text-sm font-bold rounded-full bg-opacity-10 bg-current border border-current uppercase">
+                  {skill}
+                </span>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-8">
+              <div className="bg-white bg-opacity-5 p-4 rounded-xl border border-current border-opacity-20 text-center">
+                <span className="block text-2xl font-bold">{github_data.public_repos}</span>
+                <span className="text-xs uppercase tracking-widest opacity-60">Repositories</span>
+              </div>
+              <div className="bg-white bg-opacity-5 p-4 rounded-xl border border-current border-opacity-20 text-center">
+                <span className="block text-2xl font-bold">{github_data.followers}</span>
+                <span className="text-xs uppercase tracking-widest opacity-60">Followers</span>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <h3 className="text-sm font-black uppercase tracking-[0.2em] mb-4 opacity-50">Featured Projects</h3>
+              <div className="space-y-3">
+                {github_data.top_repos.slice(0, 3).map((repo, i) => (
+                  <div key={i} className="group p-3 rounded-lg bg-white bg-opacity-5 border-l-4 border-current hover:bg-opacity-10 transition-colors">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="font-bold text-sm">{repo.name}</span>
+                      <span className="text-[10px]">⭐ {repo.stars}</span>
+                    </div>
+                    <p className="text-[10px] opacity-70 truncate">{repo.description || "Building something awesome."}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-current border-opacity-20 flex justify-between items-center opacity-60 text-[10px] uppercase tracking-widest">
+              <span className="font-bold">Verified GitHub Profile</span>
+              <span className="truncate ml-4 italic">{analysis.fun_fact}</span>
+            </div>
+          </div>
+        );
+      }
 
       function App() {
         const [username, setUsername] = useState("");
@@ -114,7 +186,7 @@
 
           try {
             const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 120000); // 120s
+            const timeout = setTimeout(() => controller.abort(), 120000);
 
             const response = await fetch(`${BACKEND_URL}/generate`, {
               method: "POST",
@@ -133,14 +205,13 @@
               throw new Error(msg);
             }
 
-            const data = await response.json();
-            if (
-              data.status === "success" ||
-              data.status === "partial_success"
-            ) {
-              setCard(data);
+            const res = await response.json();
+            if (res.status === "success") {
+              setCard(res.data);
+            } else if (res.status === "partial_success") {
+              throw new Error(res.detail || "Incomplete data from AI");
             } else {
-              throw new Error(data.detail || "Failed to generate card");
+              throw new Error("Failed to generate card");
             }
           } catch (err) {
             setError(err.message);
@@ -151,29 +222,29 @@
 
         const copyToClipboard = () => {
           if (!card) return;
-          const url = `${BACKEND_URL}${card.card_url}`;
-          navigator.clipboard.writeText(url);
+          const shareUrl = `${window.location.origin}?username=${username}`;
+          navigator.clipboard.writeText(shareUrl);
           setCopied(true);
           setTimeout(() => setCopied(false), 2000);
         };
 
         return (
-          <div class="flex flex-col items-center space-y-8 py-12">
-            <div class="text-center space-y-2">
-              <h1 class="text-4xl font-extrabold text-white tracking-tight sm:text-5xl">
+          <div className="flex flex-col items-center space-y-8 py-12">
+            <div className="text-center space-y-2">
+              <h1 className="text-4xl font-extrabold text-white tracking-tight sm:text-5xl">
                 GitHub Dev Card
               </h1>
-              <p class="text-gray-400 text-lg">
+              <p className="text-gray-400 text-lg">
                 Enter any public GitHub username
               </p>
             </div>
 
-            <form onSubmit={generateCard} class="w-full space-y-4">
-              <div class="flex flex-col sm:flex-row gap-3">
+            <form onSubmit={generateCard} className="w-full space-y-4">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <input
                   type="text"
                   placeholder="e.g. torvalds"
-                  class="flex-1 px-4 py-3 rounded-lg bg-[#0d1117] border border-[#30363d] text-white focus:outline-none focus:ring-2 focus:ring-[#2ea043] focus:border-transparent transition-all placeholder:text-gray-600"
+                  className="flex-1 px-4 py-3 rounded-lg bg-[#0d1117] border border-[#30363d] text-white focus:outline-none focus:ring-2 focus:ring-[#2ea043] focus:border-transparent transition-all placeholder:text-gray-600"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   disabled={loading}
@@ -181,82 +252,60 @@
                 <button
                   type="submit"
                   disabled={loading}
-                  class="btn-primary px-8 py-3 rounded-lg text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  className="btn-primary px-8 py-3 rounded-lg text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                 >
-                  {loading ? "Generating..." : "Generate Card"}
+                  {loading ? "Analyzing..." : "Generate Card"}
                 </button>
               </div>
             </form>
 
             {error && (
-              <div class="w-full p-4 rounded-lg bg-red-900/20 border border-red-500/50 text-red-200 text-center fade-in">
+              <div className="w-full p-4 rounded-lg bg-red-900/20 border border-red-500/50 text-red-200 text-center fade-in font-medium">
                 ⚠️ {error}
               </div>
             )}
 
             {loading && (
-              <div class="w-full glass-card p-8 rounded-2xl space-y-4 pulse border border-[#30363d]">
-                <div class="flex items-center space-x-4">
-                  <div class="w-16 h-16 bg-gray-700 rounded-full"></div>
-                  <div class="space-y-2 flex-1">
-                    <div class="h-4 bg-gray-700 rounded w-1/2"></div>
-                    <div class="h-3 bg-gray-700 rounded w-1/4"></div>
+              <div className="w-full glass-card p-8 rounded-2xl space-y-6 pulse border border-[#30363d]">
+                <div className="flex items-center space-x-4">
+                  <div className="w-20 h-20 bg-gray-800 rounded-full"></div>
+                  <div className="space-y-3 flex-1">
+                    <div className="h-6 bg-gray-800 rounded w-1/2"></div>
+                    <div className="h-4 bg-gray-800 rounded w-1/3"></div>
                   </div>
                 </div>
-                <div class="h-20 bg-gray-700 rounded w-full mt-4"></div>
-                <div class="grid grid-cols-2 gap-4">
-                  <div class="h-12 bg-gray-700 rounded"></div>
-                  <div class="h-12 bg-gray-700 rounded"></div>
+                <div className="h-24 bg-gray-800 rounded-xl w-full"></div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="h-16 bg-gray-800 rounded-xl"></div>
+                  <div className="h-16 bg-gray-800 rounded-xl"></div>
                 </div>
               </div>
             )}
 
             {card && (
-              <div class="w-full space-y-6 fade-in">
-                <div class="relative group">
-                  <div dangerouslySetInnerHTML={{ __html: card.html }} />
-                  <div class="mt-6 flex justify-center">
-                    <button
-                      onClick={copyToClipboard}
-                      class="flex items-center space-x-2 px-4 py-2 rounded-full bg-gray-700 border border-[#30363d] text-sm font-medium hover:bg-[#30363d] transition-colors text-gray-300"
-                    >
-                      {copied ? (
-                        <span class="text-green-400 flex items-center">
-                          <svg
-                            class="w-4 h-4 mr-1.5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              stroke-width="2"
-                              d="M5 13l4 4L19 7"
-                            ></path>
-                          </svg>
-                          Copied!
-                        </span>
-                      ) : (
-                        <span class="flex items-center">
-                          <svg
-                            class="w-4 h-4 mr-1.5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              stroke-width="2"
-                              d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
-                            ></path>
-                          </svg>
-                          Share Card URL
-                        </span>
-                      )}
-                    </button>
-                  </div>
+              <div className="w-full space-y-6 fade-in">
+                <DevCard data={card} />
+                <div className="mt-6 flex justify-center">
+                  <button
+                    onClick={copyToClipboard}
+                    className="flex items-center space-x-2 px-6 py-2 rounded-full bg-[#21262d] border border-[#30363d] text-sm font-medium hover:bg-[#30363d] transition-colors text-gray-300"
+                  >
+                    {copied ? (
+                      <span className="text-green-400 flex items-center">
+                        <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                        Link Copied!
+                      </span>
+                    ) : (
+                      <span className="flex items-center">
+                        <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                        </svg>
+                        Share Card
+                      </span>
+                    )}
+                  </button>
                 </div>
               </div>
             )}

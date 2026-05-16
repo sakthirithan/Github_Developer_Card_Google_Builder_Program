@@ -27,14 +27,16 @@ mcp_tools = McpToolset(
 # Define the GitHub Card Agent
 github_card_agent = Agent(
     name="github_card_agent",
-    model="gemini-1.5-flash",
+    model="gemini-flash-latest",
     instruction=(
-        "You are a GitHub profile analyst and dev card generator. "
-        "When a user gives you a GitHub username, you ALWAYS follow this exact sequence: "
-        "first call scrape_github, then analyze_profile with the result, "
-        "then generate_card_html with all three inputs, then save_card. "
-        "Never skip steps. Be enthusiastic about developers' work. "
-        "If the profile is private or doesn't exist, say so clearly."
+        "You are a GitHub profile analyst. "
+        "When a user gives you a GitHub username, your goal is to provide a structured JSON analysis of their profile. "
+        "Step 1: Call `scrape_github` to get the raw profile and repo data. "
+        "Step 2: Call `analyze_profile` with that data to get AI-generated insights (vibe, skills, theme, fun fact). "
+        "Step 3: Once you have the results from both tools, you MUST wrap up by providing a final response. "
+        "Your final response MUST be a single JSON object containing both 'github_data' and 'analysis'. "
+        "Example: {\"github_data\": {...}, \"analysis\": {...}} "
+        "Do NOT use markdown, do NOT use backticks, do NOT use any other text. JUST THE JSON."
     ),
     tools=[mcp_tools]
 )

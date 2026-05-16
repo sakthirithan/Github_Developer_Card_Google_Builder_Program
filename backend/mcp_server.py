@@ -3,14 +3,13 @@ import httpx
 import json
 from mcp.server.fastmcp import FastMCP
 from dotenv import load_dotenv
-import google.generativeai as genai
+from google import genai
 
 # Load environment variables
 load_dotenv()
 
-# Configure Gemini
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-model = genai.GenerativeModel("gemini-1.5-flash")
+# Configure Gemini Client
+client_genai = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 
 # Initialize FastMCP server
 mcp = FastMCP("GitHub Dev Card Generator")
@@ -37,6 +36,9 @@ async def scrape_github(username: str) -> dict:
         repos_data = repos_res.json() if repos_res.status_code == 200 else []
 
         # Process Repos
+        if not isinstance(repos_data, list):
+            repos_data = []
+            
         top_repos = sorted(repos_data, key=lambda x: x.get("stargazers_count", 0), reverse=True)[:6]
         top_repos_summary = [
             {
@@ -70,7 +72,7 @@ async def scrape_github(username: str) -> dict:
 @mcp.tool()
 async def analyze_profile(github_data: dict) -> dict:
     """
-    Calls Gemini 2.5 Flash (using 1.5 flash) to analyze the GitHub profile.
+    Calls Gemini to analyze the GitHub profile.
     """
     prompt = f"""
     Analyze this GitHub profile data and return a JSON object:
@@ -85,9 +87,12 @@ async def analyze_profile(github_data: dict) -> dict:
     Return ONLY the JSON object.
     """
     
-    response = model.generate_content(prompt)
+    response = client_genai.models.generate_content(
+        model="gemini-flash-latest",
+        contents=prompt
+    )
+    
     try:
-        # Clean potential markdown from response
         text = response.text.strip()
         if text.startswith("```json"):
             text = text[7:-3].strip()
@@ -100,87 +105,6 @@ async def analyze_profile(github_data: dict) -> dict:
             "card_theme": "hacker",
             "error": str(e)
         }
-
-@mcp.tool()
-def generate_card_html(username: str, github_data: dict, analysis: dict) -> str:
-    """
-    Generates a self-contained HTML string for a beautiful dev card.
-    """
-    theme = analysis.get("card_theme", "hacker")
-    themes = {
-        "hacker": "bg-black text-green-500 border-green-500",
-        "builder": "bg-blue-900 text-white border-blue-400",
-        "researcher": "bg-gray-100 text-gray-900 border-gray-400",
-        "designer": "bg-purple-100 text-purple-900 border-purple-400",
-        "open-source-hero": "bg-orange-500 text-white border-orange-200"
-    }
-    theme_class = themes.get(theme, themes["hacker"])
-
-    repos_html = "".join([
-        f'<div class="mb-2 p-2 border-l-2 border-current"><strong>{r["name"]}</strong> ({r["stars"]}⭐): {r["language"] or "N/A"}</div>'
-        for r in github_data.get("top_repos", [])[:3]
-    ])
-
-    skills_html = "".join([
-        f'<span class="px-2 py-1 m-1 text-xs font-bold rounded bg-opacity-20 bg-current border border-current">{skill}</span>'
-        for skill in analysis.get("top_skills", [])
-    ])
-
-    html = f"""
-    <div class="max-w-md mx-auto rounded-xl shadow-lg border-2 p-6 {theme_class} font-mono">
-        <div class="flex items-center space-x-4 mb-4">
-            <img src="{github_data.get('avatar_url')}" class="w-20 h-20 rounded-full border-2 border-current" />
-            <div>
-                <h2 class="text-2xl font-bold">{github_data.get('name')}</h2>
-                <p class="text-sm italic">@{username}</p>
-            </div>
-        </div>
-        <p class="mb-4 text-sm italic">"{analysis.get('developer_vibe')}"</p>
-        <div class="mb-4 flex flex-wrap">
-            {skills_html}
-        </div>
-        <div class="grid grid-cols-2 gap-4 mb-4 text-center">
-            <div class="border p-2"><strong>Repos</strong><br/>{github_data.get('public_repos')}</div>
-            <div class="border p-2"><strong>Followers</strong><br/>{github_data.get('followers')}</div>
-        </div>
-        <div class="mb-4">
-            <h3 class="font-bold mb-2 uppercase text-xs">Top Projects</h3>
-            {repos_html}
-        </div>
-        <div class="text-xs text-right opacity-70">
-            Fun Fact: {analysis.get('fun_fact')}
-        </div>
-    </div>
-    """
-    return html
-
-@mcp.tool()
-def save_card(username: str, html: str) -> str:
-    """
-    Saves the HTML to static/cards/{username}.html and returns the relative path.
-    """
-    base_dir = "static/cards"
-    os.makedirs(base_dir, exist_ok=True)
-    file_path = f"{base_dir}/{username}.html"
-    
-    # Wrap in basic HTML structure for standalone viewing if it's just a fragment
-    full_html = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <script src="https://cdn.tailwindcss.com"></script>
-        <style>body {{ display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #1a202c; }}</style>
-    </head>
-    <body>
-        {html}
-    </body>
-    </html>
-    """
-    
-    with open(file_path, "w", encoding="utf-8") as f:
-        f.write(full_html)
-    
-    return f"/static/cards/{username}.html"
 
 if __name__ == "__main__":
     mcp.run()
