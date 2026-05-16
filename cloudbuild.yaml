@@ -20,6 +20,6 @@ steps:
       - 'us-central1'
       - '--allow-unauthenticated'
       - '--port'
-      - '8080'
+      - '8083'
 images:
   - 'gcr.io/$PROJECT_ID/github-dev-card'
