@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, FileResponse
 from pydantic import BaseModel
 
+from google.genai import types as genai_types
+
 # Lazy imports for optional dependencies so `uvicorn main:app` can start
 # even if ADK or agent dependencies are not installed in the environment.
 Runner = None
@@ -50,14 +52,31 @@ def init_runner():
     session_service = InMemorySessionService()
     memory_service = InMemoryMemoryService()
     runner = Runner(
+        app_name="github_card_agent",
         agent=github_card_agent,
         session_service=session_service,
-        memory_service=memory_service
+        memory_service=memory_service,
+        auto_create_session=True
     )
     return runner
 
 class GenerateRequest(BaseModel):
     username: str
+
+def _event_text(event):
+    if not event:
+        return ""
+    content = getattr(event, "content", None)
+    if not content:
+        return ""
+    parts = getattr(content, "parts", []) or []
+    texts = []
+    for part in parts:
+        text = getattr(part, "text", None)
+        if text:
+            texts.append(str(text))
+    return " ".join(texts).strip()
+
 
 @app.post("/generate")
 async def generate_card(request: GenerateRequest):
@@ -79,11 +98,10 @@ async def generate_card(request: GenerateRequest):
         session_id = f"session_{username}"
         message = f"Generate a dev card for {username}"
 
-        # Run the agent synchronously for simplicity in this implementation
-        # (ADK runner.run returns a response object after processing tools)
-        response = _runner.run(message=message, session_id=session_id)
-        
-        # In a real-world scenario with tool outputs, we'd extract the final result
+        new_message = genai_types.UserContent(parts=[genai_types.Part(text=message)])
+        events = list(_runner.run(user_id=username, session_id=session_id, new_message=new_message))
+        agent_response = "\n".join([_event_text(event) for event in events if _event_text(event)])
+
         # Since our agent saves the card, we'll check the filesystem for the result
         card_path = f"static/cards/{username}.html"
         if os.path.exists(card_path):
@@ -94,13 +112,13 @@ async def generate_card(request: GenerateRequest):
                 "username": username,
                 "card_url": f"/card/{username}",
                 "html": html_content,
-                "agent_response": response.text
+                "agent_response": agent_response
             }
         else:
             return {
                 "status": "partial_success",
                 "username": username,
-                "agent_response": response.text,
+                "agent_response": agent_response,
                 "detail": "Agent finished but card file was not found."
             }
 
