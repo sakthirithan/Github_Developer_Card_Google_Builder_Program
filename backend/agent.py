@@ -24,7 +24,7 @@ mcp_tools = McpToolset(
 github_card_agent = Agent(
     name="github_card_agent",
     model="gemini-2.5-flash",
-    instructions=(
+    instruction=(
         "You are a GitHub profile analyst and dev card generator. "
         "When a user gives you a GitHub username, you ALWAYS follow this exact sequence: "
         "first call scrape_github, then analyze_profile with the result, "
@@ -32,7 +32,7 @@ github_card_agent = Agent(
         "Never skip steps. Be enthusiastic about developers' work. "
         "If the profile is private or doesn't exist, say so clearly."
     ),
-    toolsets=[mcp_tools]
+    tools=[mcp_tools]
 )
 
 if __name__ == "__main__":
