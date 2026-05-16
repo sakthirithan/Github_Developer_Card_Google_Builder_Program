@@ -2,7 +2,7 @@ import os
 import sys
 from dotenv import load_dotenv
 from google.adk import Agent
-from google.adk.tools import McpToolset, StdioConnectionParams
+from google.adk.tools.mcp_tool import McpToolset, StdioConnectionParams
 from mcp.client.stdio import StdioServerParameters
 
 # Load environment variables
