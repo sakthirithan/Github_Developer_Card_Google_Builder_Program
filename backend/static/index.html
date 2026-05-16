@@ -1,195 +1,320 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GitHub Dev Card Generator</title>
     <!-- Google Fonts: Inter -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
     <!-- React & Tailwind via CDN -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #0d1117;
-            color: #c9d1d9;
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: #0d1117;
+        color: #c9d1d9;
+      }
+      .glass-card {
+        background: rgba(22, 27, 34, 0.8);
+        border: 1px solid #30363d;
+        backdrop-filter: blur(10px);
+      }
+      .btn-primary {
+        background: linear-gradient(135deg, #238636 0%, #2ea043 100%);
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(46, 160, 67, 0.4);
+      }
+      .btn-primary:active {
+        transform: translateY(0);
+      }
+      .fade-in {
+        animation: fadeIn 0.6s ease-out forwards;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
         }
-        .glass-card {
-            background: rgba(22, 27, 34, 0.8);
-            border: 1px solid #30363d;
-            backdrop-filter: blur(10px);
+        to {
+          opacity: 1;
+          transform: translateY(0);
         }
-        .btn-primary {
-            background: linear-gradient(135deg, #238636 0%, #2ea043 100%);
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .pulse {
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
         }
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(46, 160, 67, 0.4);
+        50% {
+          opacity: 0.5;
         }
-        .btn-primary:active {
-            transform: translateY(0);
-        }
-        .fade-in {
-            animation: fadeIn 0.6s ease-out forwards;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .pulse {
-            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: .5; }
-        }
+      }
     </style>
-</head>
-<body class="min-h-screen flex flex-col items-center justify-center p-4">
+  </head>
+  <body class="min-h-screen flex flex-col items-center justify-center p-4">
     <div id="root" class="w-full max-w-[600px]"></div>
 
     <script type="text/babel">
-        const { useState } = React;
+      const { useState } = React;
 
-        function App() {
-            const [username, setUsername] = useState('');
-            const [loading, setLoading] = useState(false);
-            const [card, setCard] = useState(null);
-            const [error, setError] = useState(null);
-            const [copied, setCopied] = useState(false);
-
-            const generateCard = async (e) => {
-                e.preventDefault();
-                if (!username.trim()) return;
-
-                setLoading(true);
-                setError(null);
-                setCard(null);
-                setCopied(false);
-
-                try {
-                    const response = await fetch('/generate', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ username: username.trim() })
-                    });
-
-                    if (!response.ok) {
-                        throw new Error('User not found or API error');
-                    }
-
-                    const data = await response.json();
-                    if (data.status === 'success' || data.status === 'partial_success') {
-                        setCard(data);
-                    } else {
-                        throw new Error(data.detail || 'Failed to generate card');
-                    }
-                } catch (err) {
-                    setError(err.message);
-                } finally {
-                    setLoading(false);
-                }
-            };
-
-            const copyToClipboard = () => {
-                if (!card) return;
-                const url = `${window.location.origin}${card.card_url}`;
-                navigator.clipboard.writeText(url);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 2000);
-            };
-
-            return (
-                <div class="flex flex-col items-center space-y-8 py-12">
-                    <div class="text-center space-y-2">
-                        <h1 class="text-4xl font-extrabold text-white tracking-tight sm:text-5xl">
-                            GitHub Dev Card
-                        </h1>
-                        <p class="text-gray-400 text-lg">
-                            Enter any public GitHub username
-                        </p>
-                    </div>
-
-                    <form onSubmit={generateCard} class="w-full space-y-4">
-                        <div class="flex flex-col sm:flex-row gap-3">
-                            <input 
-                                type="text" 
-                                placeholder="e.g. torvalds" 
-                                class="flex-1 px-4 py-3 rounded-lg bg-[#0d1117] border border-[#30363d] text-white focus:outline-none focus:ring-2 focus:ring-[#2ea043] focus:border-transparent transition-all placeholder:text-gray-600"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
-                                disabled={loading}
-                            />
-                            <button 
-                                type="submit"
-                                disabled={loading}
-                                class="btn-primary px-8 py-3 rounded-lg text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                            >
-                                {loading ? 'Generating...' : 'Generate Card'}
-                            </button>
-                        </div>
-                    </form>
-
-                    {error && (
-                        <div class="w-full p-4 rounded-lg bg-red-900/20 border border-red-500/50 text-red-200 text-center fade-in">
-                            ⚠️ {error}
-                        </div>
-                    )}
-
-                    {loading && (
-                        <div class="w-full glass-card p-8 rounded-2xl space-y-4 pulse border border-[#30363d]">
-                            <div class="flex items-center space-x-4">
-                                <div class="w-16 h-16 bg-gray-700 rounded-full"></div>
-                                <div class="space-y-2 flex-1">
-                                    <div class="h-4 bg-gray-700 rounded w-1/2"></div>
-                                    <div class="h-3 bg-gray-700 rounded w-1/4"></div>
-                                </div>
-                            </div>
-                            <div class="h-20 bg-gray-700 rounded w-full mt-4"></div>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div class="h-12 bg-gray-700 rounded"></div>
-                                <div class="h-12 bg-gray-700 rounded"></div>
-                            </div>
-                        </div>
-                    )}
-
-                    {card && (
-                        <div class="w-full space-y-6 fade-in">
-                            <div class="relative group">
-                                <div dangerouslySetInnerHTML={{ __html: card.html }} />
-                                <div class="mt-6 flex justify-center">
-                                    <button 
-                                        onClick={copyToClipboard}
-                                        class="flex items-center space-x-2 px-4 py-2 rounded-full bg-[#21262d] border border-[#30363d] text-sm font-medium hover:bg-[#30363d] transition-colors text-gray-300"
-                                    >
-                                        {copied ? (
-                                            <span class="text-green-400 flex items-center">
-                                                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                                                Copied!
-                                            </span>
-                                        ) : (
-                                            <span class="flex items-center">
-                                                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
-                                                Share Card URL
-                                            </span>
-                                        )}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            );
+      // Determine backend base URL:
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const apiBaseParam = params.get("apiBase");
+        const LOCAL_DEFAULT = "http://127.0.0.1:8083";
+        let detected = LOCAL_DEFAULT;
+        if (apiBaseParam) {
+          detected = apiBaseParam.replace(/\/+$/, "");
+        } else {
+          const origin = window.location.origin || window.location.href;
+          if (
+            origin.includes("run.app") ||
+            origin.includes("github-dev-card-174651075649")
+          ) {
+            detected = origin.replace(/\/+$/, "");
+          }
         }
+        window.BACKEND_URL = detected;
+      })();
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+      const BACKEND_URL = window.BACKEND_URL;
+
+      function DevCard({ data }) {
+        if (!data || !data.github_data) return null;
+        const { github_data, analysis } = data;
+        const theme = (analysis.card_theme || "hacker").toLowerCase();
+
+        const themes = {
+          hacker: "bg-[#0d1117] text-[#39d353] border-[#39d353]",
+          builder: "bg-[#0d1117] text-[#58a6ff] border-[#58a6ff]",
+          researcher: "bg-[#0d1117] text-[#bc8cff] border-[#bc8cff]",
+          designer: "bg-[#0d1117] text-[#ff7b72] border-[#ff7b72]",
+          "open-source-hero": "bg-[#0d1117] text-[#f0883e] border-[#f0883e]",
+        };
+
+        const themeClass = themes[theme] || themes.hacker;
+
+        return (
+          <div className={`max-w-md mx-auto rounded-2xl shadow-2xl border-2 p-8 ${themeClass} font-mono transform hover:scale-[1.02] transition-all duration-300`}>
+            <div className="flex items-center space-x-6 mb-6">
+              <img
+                src={github_data.avatar_url}
+                className="w-24 h-24 rounded-full border-4 border-current shadow-lg"
+                alt={github_data.name}
+              />
+              <div className="overflow-hidden">
+                <h2 className="text-3xl font-black tracking-tighter uppercase truncate">{github_data.name}</h2>
+                <p className="text-lg opacity-80">@{github_data.name.toLowerCase().replace(/\s+/g, '')}</p>
+              </div>
+            </div>
+
+            <div className="mb-6 min-h-[3rem]">
+              <p className="text-lg italic leading-tight">"{analysis.developer_vibe}"</p>
+            </div>
+
+            <div className="flex flex-wrap gap-2 mb-8">
+              {analysis.top_skills.map((skill, i) => (
+                <span key={i} className="px-3 py-1 text-sm font-bold rounded-full bg-opacity-10 bg-current border border-current uppercase">
+                  {skill}
+                </span>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-8">
+              <div className="bg-white bg-opacity-5 p-4 rounded-xl border border-current border-opacity-20 text-center">
+                <span className="block text-2xl font-bold">{github_data.public_repos}</span>
+                <span className="text-xs uppercase tracking-widest opacity-60">Repositories</span>
+              </div>
+              <div className="bg-white bg-opacity-5 p-4 rounded-xl border border-current border-opacity-20 text-center">
+                <span className="block text-2xl font-bold">{github_data.followers}</span>
+                <span className="text-xs uppercase tracking-widest opacity-60">Followers</span>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <h3 className="text-sm font-black uppercase tracking-[0.2em] mb-4 opacity-50">Featured Projects</h3>
+              <div className="space-y-3">
+                {github_data.top_repos.slice(0, 3).map((repo, i) => (
+                  <div key={i} className="group p-3 rounded-lg bg-white bg-opacity-5 border-l-4 border-current hover:bg-opacity-10 transition-colors">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="font-bold text-sm">{repo.name}</span>
+                      <span className="text-[10px]">⭐ {repo.stars}</span>
+                    </div>
+                    <p className="text-[10px] opacity-70 truncate">{repo.description || "Building something awesome."}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-current border-opacity-20 flex justify-between items-center opacity-60 text-[10px] uppercase tracking-widest">
+              <span className="font-bold">Verified GitHub Profile</span>
+              <span className="truncate ml-4 italic">{analysis.fun_fact}</span>
+            </div>
+          </div>
+        );
+      }
+
+      function App() {
+        const [username, setUsername] = useState("");
+        const [loading, setLoading] = useState(false);
+        const [card, setCard] = useState(null);
+        const [error, setError] = useState(null);
+        const [copied, setCopied] = useState(false);
+
+        const generateCard = async (e) => {
+          e.preventDefault();
+          if (!username.trim()) return;
+
+          setLoading(true);
+          setError(null);
+          setCard(null);
+          setCopied(false);
+
+          try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 120000);
+
+            const response = await fetch(`${BACKEND_URL}/generate`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ username: username.trim() }),
+              signal: controller.signal,
+            });
+            clearTimeout(timeout);
+
+            if (!response.ok) {
+              let msg = "User not found or API error";
+              try {
+                const err = await response.json();
+                msg = err.detail || msg;
+              } catch (_) {}
+              throw new Error(msg);
+            }
+
+            const res = await response.json();
+            if (res.status === "success") {
+              setCard(res.data);
+            } else if (res.status === "partial_success") {
+              throw new Error(res.detail || "Incomplete data from AI");
+            } else {
+              throw new Error("Failed to generate card");
+            }
+          } catch (err) {
+            setError(err.message);
+          } finally {
+            setLoading(false);
+          }
+        };
+
+        const copyToClipboard = () => {
+          if (!card) return;
+          const shareUrl = `${window.location.origin}?username=${username}`;
+          navigator.clipboard.writeText(shareUrl);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        };
+
+        return (
+          <div className="flex flex-col items-center space-y-8 py-12">
+            <div className="text-center space-y-2">
+              <h1 className="text-4xl font-extrabold text-white tracking-tight sm:text-5xl">
+                GitHub Dev Card
+              </h1>
+              <p className="text-gray-400 text-lg">
+                Enter any public GitHub username
+              </p>
+            </div>
+
+            <form onSubmit={generateCard} className="w-full space-y-4">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="text"
+                  placeholder="e.g. torvalds"
+                  className="flex-1 px-4 py-3 rounded-lg bg-[#0d1117] border border-[#30363d] text-white focus:outline-none focus:ring-2 focus:ring-[#2ea043] focus:border-transparent transition-all placeholder:text-gray-600"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  disabled={loading}
+                />
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="btn-primary px-8 py-3 rounded-lg text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                >
+                  {loading ? "Analyzing..." : "Generate Card"}
+                </button>
+              </div>
+            </form>
+
+            {error && (
+              <div className="w-full p-4 rounded-lg bg-red-900/20 border border-red-500/50 text-red-200 text-center fade-in font-medium">
+                ⚠️ {error}
+              </div>
+            )}
+
+            {loading && (
+              <div className="w-full glass-card p-8 rounded-2xl space-y-6 pulse border border-[#30363d]">
+                <div className="flex items-center space-x-4">
+                  <div className="w-20 h-20 bg-gray-800 rounded-full"></div>
+                  <div className="space-y-3 flex-1">
+                    <div className="h-6 bg-gray-800 rounded w-1/2"></div>
+                    <div className="h-4 bg-gray-800 rounded w-1/3"></div>
+                  </div>
+                </div>
+                <div className="h-24 bg-gray-800 rounded-xl w-full"></div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="h-16 bg-gray-800 rounded-xl"></div>
+                  <div className="h-16 bg-gray-800 rounded-xl"></div>
+                </div>
+              </div>
+            )}
+
+            {card && (
+              <div className="w-full space-y-6 fade-in">
+                <DevCard data={card} />
+                <div className="mt-6 flex justify-center">
+                  <button
+                    onClick={copyToClipboard}
+                    className="flex items-center space-x-2 px-6 py-2 rounded-full bg-[#21262d] border border-[#30363d] text-sm font-medium hover:bg-[#30363d] transition-colors text-gray-300"
+                  >
+                    {copied ? (
+                      <span className="text-green-400 flex items-center">
+                        <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                        Link Copied!
+                      </span>
+                    ) : (
+                      <span className="flex items-center">
+                        <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                        </svg>
+                        Share Card
+                      </span>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      const root = ReactDOM.createRoot(document.getElementById("root"));
+      root.render(<App />);
     </script>
-</body>
+  </body>
 </html>

@@ -27,7 +27,7 @@ mcp_tools = McpToolset(
 # Define the GitHub Card Agent
 github_card_agent = Agent(
     name="github_card_agent",
-    model="gemini-flash-latest",
+    model="gemini-2.0-flash",
     instruction=(
         "You are a GitHub profile analyst. "
         "When a user gives you a GitHub username, your goal is to provide a structured JSON analysis of their profile. "

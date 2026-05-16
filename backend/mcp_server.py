@@ -88,7 +88,7 @@ async def analyze_profile(github_data: dict) -> dict:
     """
     
     response = client_genai.models.generate_content(
-        model="gemini-flash-latest",
+        model="gemini-2.0-flash",
         contents=prompt
     )
     
