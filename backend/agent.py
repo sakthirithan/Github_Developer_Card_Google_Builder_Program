@@ -1,7 +1,9 @@
 import os
 import sys
 from dotenv import load_dotenv
-from google.adk import Agent, McpToolset, McpStdioTransport
+from google.adk import Agent
+from google.adk.tools import McpToolset
+from mcp.client.stdio import StdioServerParameters
 
 # Load environment variables
 load_dotenv()
@@ -10,9 +12,9 @@ load_dotenv()
 # sys.executable refers to the current python interpreter
 mcp_server_path = os.path.join(os.path.dirname(__file__), "mcp_server.py")
 
-# Define the tools using McpToolset and Stdio Transport
+# Define the tools using McpToolset and StdioServerParameters
 mcp_tools = McpToolset(
-    transport=McpStdioTransport(
+    connection_params=StdioServerParameters(
         command=sys.executable,
         args=[mcp_server_path]
     )

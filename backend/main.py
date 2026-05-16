@@ -34,7 +34,9 @@ def init_runner():
     if runner is not None:
         return runner
     try:
-        from google.adk import Runner as _Runner, InMemorySessionService as _InMemSess, InMemoryMemoryService as _InMemMem
+        from google.adk import Runner as _Runner
+        from google.adk.sessions import InMemorySessionService as _InMemSess
+        from google.adk.memory import InMemoryMemoryService as _InMemMem
         from agent import github_card_agent as _agent
     except Exception as e:
         raise
